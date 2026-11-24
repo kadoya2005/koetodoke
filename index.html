@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#e0703a">
+<title>こえとどけ（試作）</title>
+<style>
+/* VOICE: 家族の声。やさしく、迷わない。
+   IDEA: 留守番電話と、冷蔵庫に貼るメモ。
+   PICTURE: 大きな録音ボタンと、届いた声のカード。
+   COLOUR/TYPE: 生成りの地に柿色1色。丸ゴシック。
+   LAYOUT: 1画面1つの作業。下に大きな「次へ」。 */
+:root{color-scheme:light dark;--bg:light-dark(#fbf7f1,#17130f);--panel:light-dark(#fff,#221c16);--ink:light-dark(#2a211a,#f3ece3);--sub:light-dark(#7a6c60,#b3a597);--line:light-dark(#eadfd2,#3a3027);--acc:#e0703a;--acc2:light-dark(#b4521f,#f2a274);--ok:#2f9a6a}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 "M PLUS Rounded 1c","Hiragino Maru Gothic ProN","BIZ UDPGothic","Yu Gothic UI",sans-serif;display:flex;flex-direction:column;max-width:520px;margin-inline:auto}
+header{display:flex;align-items:center;gap:10px;padding:max(14px,env(safe-area-inset-top)) 16px 8px}
+header h1{font-size:20px;margin:0;flex:1}
+.tabs{display:flex;background:var(--line);border-radius:999px;padding:3px}
+.tabs button{border:0;background:none;border-radius:999px;padding:6px 12px;font:inherit;font-size:14px;color:var(--sub);min-height:36px;cursor:pointer}
+.tabs button[aria-pressed=true]{background:var(--panel);color:var(--ink);font-weight:700}
+main{flex:1;padding:4px 16px 16px;overflow:auto}
+.scr{display:none}.scr.on{display:block;animation:in .2s ease-out}
+@keyframes in{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.scr.on{animation:none}}
+.prog{display:flex;gap:6px;margin:4px 0 14px}.prog i{flex:1;height:5px;border-radius:3px;background:var(--line)}.prog i.on{background:var(--acc)}
+h2{font-size:24px;line-height:1.25;margin:0 0 6px}
+.lead{color:var(--sub);margin:0 0 16px;font-size:15px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:10px}
+.pick{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:inherit;background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px;cursor:pointer;min-height:64px}
+.pick[aria-pressed=true]{border-color:var(--acc)}
+.av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--line);font-size:20px;flex:none}
+.pick small{display:block;color:var(--sub);font-size:13px}
+button,input,select{font:inherit}
+.btn{width:100%;min-height:54px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-weight:700;cursor:pointer}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,.pick:focus-visible,.tabs button:focus-visible,.rec:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--acc2);outline-offset:2px}
+.recWrap{display:grid;place-items:center;gap:12px;padding:16px 0}
+.rec{width:168px;height:168px;border-radius:50%;border:0;background:var(--acc);color:#fff;font-size:20px;font-weight:700;cursor:pointer;position:relative;box-shadow:0 10px 30px color-mix(in srgb,var(--acc) 35%,transparent)}
+.rec.on{background:#c0392b}
+.rec svg{position:absolute;inset:-10px;width:188px;height:188px;transform:rotate(-90deg)}
+.sec{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1 1 0}
+input[type=time]{width:100%;font-size:34px;font-weight:700;padding:10px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--ink);text-align:center}
+input[type=text]{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);min-height:48px}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px}
+.days button{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.days button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+.seg button{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.seg button[aria-pressed=true]{border:2px solid var(--acc);font-weight:700}
+.sum{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;align-items:center}
+.sum dt{color:var(--sub);font-size:14px}.sum dd{margin:0;font-weight:700}
+.big{font-size:56px;text-align:center;margin:10px 0}
+.foot{position:sticky;bottom:0;display:flex;gap:10px;padding:10px 16px max(12px,env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line)}
+.foot .btn:first-child{flex:0 0 32%}
+.empty{color:var(--sub);text-align:center;padding:30px 10px}
+.msg{display:flex;gap:12px;align-items:center}
+.msg .t{flex:1}.msg .t b{font-size:22px}
+.play{width:52px;height:52px;border-radius:50%;border:0;background:var(--acc);color:#fff;font-size:20px;cursor:pointer;flex:none}
+.ring{position:fixed;inset:0;z-index:20;display:none;place-items:center;background:color-mix(in srgb,var(--acc) 92%,#000);color:#fff;text-align:center;padding:24px}
+.ring.on{display:grid}
+.ring .who{font-size:30px;font-weight:700;margin:12px 0 4px}
+.ring .pulse{width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.25);display:grid;place-items:center;font-size:60px;margin:auto;animation:pu 1.2s ease-in-out infinite}
+@keyframes pu{50%{transform:scale(1.08)}}
+.ring .btn{background:#fff;color:var(--acc2);border:0;margin-top:20px}
+.note{font-size:13px;color:var(--sub);margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+<h1>こえとどけ</h1>
+<div class="tabs" role="group" aria-label="使う人">
+<button type="button" id="tabSend" aria-pressed="true">送る人</button>
+<button type="button" id="tabRecv" aria-pressed="false">受け取る人</button>
+</div>
+</header>
+
+<main>
+<!-- ===== 送る人：4つの画面 ===== -->
+<section class="scr" id="s1" data-side="send">
+<div class="prog"><i class="on"></i><i></i><i></i><i></i></div>
+<h2>だれに届けますか？</h2>
+<p class="lead">声を届ける相手を選んでください。</p>
+<div id="toList"></div>
+<button class="pick" type="button" id="addTo"><span class="av">＋</span><span>相手を追加する<small>受け取る人のスマホに出る「つなぐコード」を入れます</small></span></button>
+</section>
+
+<section class="scr" id="s2" data-side="send">
+<div class="prog"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+<h2>声を録音する</h2>
+<p class="lead">6秒まで録れます。たとえば「お薬のんだ？」</p>
+<div class="recWrap">
+<button class="rec" type="button" id="recBtn" aria-label="録音">
+<svg viewBox="0 0 188 188" aria-hidden="true"><circle cx="94" cy="94" r="88" fill="none" stroke="currentColor" stroke-opacity=".2" stroke-width="6"/><circle id="arc" cx="94" cy="94" r="88" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-dasharray="553" stroke-dashoffset="553"/></svg>
+<span id="recLabel">● 録音</span></button>
+<div class="sec" id="sec">0.0 秒</div>
+</div>
+<div class="row"><button class="btn" type="button" id="listen" disabled>▶ 聞いてみる</button></div>
+<p class="note" id="recNote"></p>
+</section>
+
+<section class="scr" id="s3" data-side="send">
+<div class="prog"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+<h2>いつ鳴らしますか？</h2>
+<p class="lead">相手のスマホで、この時刻に声が流れます。</p>
+<input type="time" id="when" value="13:00" aria-label="鳴らす時刻">
+<div class="seg" role="group" aria-label="くりかえし">
+<button type="button" data-rep="once">1回だけ</button><button type="button" data-rep="daily" aria-pressed="true">毎日</button><button type="button" data-rep="days">曜日</button>
+</div>
+<div class="days" id="days" hidden></div>
+</section>
+
+<section class="scr" id="s4" data-side="send">
+<div class="prog"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+<h2>この内容で送ります</h2>
+<p class="lead">送ったあとも、相手の画面に予定として残ります。</p>
+<div class="card"><dl class="sum" id="sum"></dl></div>
+<button class="btn" type="button" id="listen2">▶ 声をもう一度聞く</button>
+</section>
+
+<section class="scr" id="s5" data-side="send">
+<div class="big" aria-hidden="true">📮</div>
+<h2 style="text-align:center">送りました</h2>
+<p class="lead" style="text-align:center" id="doneLead"></p>
+<p class="note" style="text-align:center">試作版なので、同じスマホの「受け取る人」の画面に届きます。右上で切り替えて確かめてください。</p>
+</section>
+
+<!-- ===== 受け取る人 ===== -->
+<section class="scr" id="r0" data-side="recv">
+<h2>届いた声</h2>
+<p class="lead" id="nextLead">まだ届いていません。</p>
+<div id="inbox"></div>
+<div class="card"><b>つなぐコード</b><div style="font-size:30px;font-weight:700;letter-spacing:.15em" id="myCode"></div><p class="note" style="margin:0">送る人に、このコードを伝えてください（試作版では、送る人の画面の相手に最初から入っています）。</p></div>
+</section>
+</main>
+
+<nav class="foot" id="foot"><button class="btn" type="button" id="back">← 戻る</button><button class="btn pri" type="button" id="next">次へ</button></nav>
+
+<div class="ring" id="ring" role="alertdialog" aria-modal="true" aria-labelledby="ringWho">
+<div><div class="pulse" aria-hidden="true">🔔</div><div class="who" id="ringWho"></div><div id="ringTime"></div>
+<button class="btn" type="button" id="ringPlay">▶ もう一度聞く</button>
+<button class="btn" type="button" id="ringOk">聞きました</button></div>
+</div>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{return JSON.parse(localStorage.getItem('koe.'+k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem('koe.'+k,JSON.stringify(v))}catch(e){}}};
+const DAYS=['日','月','火','水','木','金','土'];
+let side='send',step=1,toSel=null,audioURL=null,audioData=null,rep='daily',days=new Set([1,2,3,4,5]);
+let people=store.get('people',[{id:'p1',name:'お母さん',icon:'👵',code:'KOE-1234'},{id:'p2',name:'お父さん',icon:'👴',code:'KOE-5678'}]);
+let inbox=store.get('inbox',[]);
+let myCode=store.get('code',null);if(!myCode){myCode='KOE-'+String(Math.floor(1000+Math.random()*9000));store.set('code',myCode)}
+$('myCode').textContent=myCode;
+// ---- 画面遷移 ----
+function show(id){document.querySelectorAll('.scr').forEach(s=>s.classList.toggle('on',s.id===id));main.scrollTop=0}
+const main=document.querySelector('main');
+function go(n){
+  step=n;show('s'+n);
+  $('foot').hidden=false;$('back').hidden=n===1||n===5;
+  $('next').textContent=n===4?'送る':n===5?'もう1つ送る':'次へ';
+  $('next').disabled=(n===1&&!toSel)||(n===2&&!audioData);
+  if(n===4)fillSum();
+  if(n===1)renderTo();
+}
+function setSide(s){
+  side=s;$('tabSend').setAttribute('aria-pressed',s==='send');$('tabRecv').setAttribute('aria-pressed',s==='recv');
+  if(s==='send')go(step===5?1:step);else{show('r0');$('foot').hidden=true;renderInbox()}
+}
+$('tabSend').onclick=()=>setSide('send');$('tabRecv').onclick=()=>setSide('recv');
+$('back').onclick=()=>go(Math.max(1,step-1));
+$('next').onclick=()=>{if(step===4){send();go(5)}else if(step===5){audioData=null;audioURL=null;$('listen').disabled=true;$('sec').textContent='0.0 秒';go(1)}else go(step+1)};
+// ---- 1. 相手 ----
+function renderTo(){
+  $('toList').innerHTML=people.map(p=>`<button class="pick" type="button" data-id="${p.id}" aria-pressed="${toSel===p.id}"><span class="av">${p.icon}</span><span>${esc(p.name)}<small>つなぐコード ${p.code}</small></span></button>`).join('');
+  $('toList').querySelectorAll('.pick').forEach(b=>b.onclick=()=>{toSel=b.dataset.id;renderTo();$('next').disabled=false});
+}
+$('addTo').onclick=()=>{ // 試作：名前とコードを入れる簡易フォーム
+  if($('addForm'))return;
+  const f=document.createElement('div');f.className='card';f.id='addForm';
+  f.innerHTML='<label>呼び名<input type="text" id="nName" placeholder="例：おばあちゃん"></label><label style="display:block;margin-top:8px">つなぐコード<input type="text" id="nCode" placeholder="KOE-0000"></label><div class="row" style="margin-top:10px"><button class="btn" type="button" id="nCancel">やめる</button><button class="btn pri" type="button" id="nOk">追加</button></div>';
+  $('addTo').after(f);$('nCode').value=myCode;
+  $('nCancel').onclick=()=>f.remove();
+  $('nOk').onclick=()=>{const n=$('nName').value.trim();if(!n)return $('nName').focus();const p={id:'p'+Date.now(),name:n,icon:'🙂',code:$('nCode').value.trim()||myCode};people.push(p);store.set('people',people);toSel=p.id;f.remove();renderTo();$('next').disabled=false};
+};
+// ---- 2. 録音（6秒まで）----
+let rec=null,stream=null,t0=0,raf=0;const MAX=6;
+$('recBtn').onclick=async()=>{
+  if(rec){rec.stop();return}
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){$('recNote').textContent='マイクを使えませんでした。ブラウザの設定でマイクを許可してください（https:// のページで開く必要があります）。';return}
+  const ch=[];rec=new MediaRecorder(stream);rec.ondataavailable=e=>ch.push(e.data);
+  rec.onstop=()=>{cancelAnimationFrame(raf);stream.getTracks().forEach(t=>t.stop());rec=null;
+    $('recBtn').classList.remove('on');$('recLabel').textContent='● 録り直す';$('arc').style.strokeDashoffset=553;
+    const blob=new Blob(ch,{type:ch[0]&&ch[0].type||'audio/webm'});audioURL=URL.createObjectURL(blob);
+    const r=new FileReader();r.onload=()=>{audioData=r.result;$('listen').disabled=false;if(step===2)$('next').disabled=false};r.readAsDataURL(blob)};
+  rec.start();t0=performance.now();$('recBtn').classList.add('on');$('recLabel').textContent='■ 止める';$('recNote').textContent='';
+  const tick=()=>{const s=(performance.now()-t0)/1000;$('sec').textContent=Math.min(s,MAX).toFixed(1)+' 秒';$('arc').style.strokeDashoffset=553*(1-Math.min(s/MAX,1));if(s>=MAX&&rec){rec.stop();$('recNote').textContent='6秒になったので止めました。'}else raf=requestAnimationFrame(tick)};tick();
+};
+const playData=d=>{try{const a=new Audio(d);a.play().catch(()=>{});return a}catch(e){}};
+$('listen').onclick=()=>playData(audioData);$('listen2').onclick=()=>playData(audioData);
+// ---- 3. いつ ----
+$('days').innerHTML=DAYS.map((d,i)=>`<button type="button" data-d="${i}" aria-pressed="${days.has(i)}">${d}</button>`).join('');
+$('days').querySelectorAll('button').forEach(b=>b.onclick=()=>{const i=+b.dataset.d;days.has(i)?days.delete(i):days.add(i);b.setAttribute('aria-pressed',days.has(i))});
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{rep=b.dataset.rep;document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));$('days').hidden=rep!=='days'});
+const repText=()=>rep==='once'?'1回だけ':rep==='daily'?'毎日':[...days].sort().map(i=>DAYS[i]).join('・')+'曜日';
+// ---- 4. 確認・送る ----
+function fillSum(){const p=people.find(x=>x.id===toSel);$('sum').innerHTML=`<dt>相手</dt><dd>${p?p.icon+' '+esc(p.name):''}</dd><dt>時刻</dt><dd>${$('when').value}</dd><dt>くりかえし</dt><dd>${repText()}</dd><dt>声</dt><dd>録音あり（6秒以内）</dd>`}
+function send(){const p=people.find(x=>x.id===toSel);
+  inbox.push({id:'m'+Date.now(),from:'あなた',to:p.name,time:$('when').value,rep,days:[...days],audio:audioData,last:''});store.set('inbox',inbox);
+  $('doneLead').textContent=`${p.name}のスマホで、${repText()} ${$('when').value} に声が流れます。`}
+// ---- 受け取る人 ----
+const nextOf=m=>{const now=new Date(),[h,mi]=m.time.split(':').map(Number);for(let k=0;k<8;k++){const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+k,h,mi);if(d<=now)continue;if(m.rep==='days'&&!m.days.includes(d.getDay()))continue;return d}return null};
+function renderInbox(){
+  $('inbox').innerHTML=inbox.length?inbox.map(m=>{const n=nextOf(m);return `<div class="card msg"><button class="play" type="button" data-id="${m.id}" aria-label="再生">▶</button><div class="t"><b>${m.time}</b>　${m.rep==='once'?'1回だけ':m.rep==='daily'?'毎日':m.days.map(i=>DAYS[i]).join('・')}<br><small style="color:var(--sub)">${esc(m.from)}からの声${n?'・次は '+(n.getMonth()+1)+'/'+n.getDate()+' '+m.time:''}</small></div><button class="btn" style="width:auto;min-height:44px;padding:0 12px" type="button" data-ring="${m.id}">試しに鳴らす</button></div>`}).join(''):'<div class="empty">まだ届いた声はありません。</div>';
+  $('inbox').querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>{const m=inbox.find(x=>x.id===b.dataset.id);playData(m.audio)});
+  $('inbox').querySelectorAll('[data-ring]').forEach(b=>b.onclick=()=>ring(inbox.find(x=>x.id===b.dataset.ring)));
+  const ns=inbox.map(nextOf).filter(Boolean).sort((a,b)=>a-b);
+  $('nextLead').textContent=ns.length?`次に鳴るのは ${ns[0].getMonth()+1}月${ns[0].getDate()}日 ${String(ns[0].getHours()).padStart(2,'0')}:${String(ns[0].getMinutes()).padStart(2,'0')} です。`:'まだ届いていません。';
+}
+let ringing=null,ringAudio=null;
+function ring(m){ringing=m;$('ringWho').textContent=m.from+'から';$('ringTime').textContent=m.time;$('ring').classList.add('on');ringAudio=playData(m.audio);$('ringOk').focus()}
+$('ringPlay').onclick=()=>{if(ringing)ringAudio=playData(ringing.audio)};
+$('ringOk').onclick=()=>{$('ring').classList.remove('on');if(ringAudio)ringAudio.pause();if(ringing&&ringing.rep==='once'){inbox=inbox.filter(x=>x!==ringing);store.set('inbox',inbox)}ringing=null;renderInbox()};
+// 画面を開いている間だけ、時刻になったら鳴らす（本番のAndroidアプリでは、閉じていても鳴る仕組みにする）
+setInterval(()=>{const now=new Date(),hm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),key=now.toDateString()+hm;
+  for(const m of inbox){if(m.time!==hm||m.last===key)continue;if(m.rep==='days'&&!m.days.includes(now.getDay()))continue;m.last=key;store.set('inbox',inbox);ring(m);break}},5000);
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+go(1);
+}
+</script>
+</body>
+</html>
